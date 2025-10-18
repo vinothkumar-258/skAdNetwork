@@ -13,7 +13,7 @@ public class SkadnetworkPlugin: NSObject, FlutterPlugin {
     switch call.method {
 
     // ------------------------------------------------------------
-    // MARK: Set fine conversion value (SKAN 1–3)
+    // MARK: SKAN 1–3 fine value (iOS 14+)
     // ------------------------------------------------------------
     case "setConversionValue":
       guard let args = call.arguments as? [String: Any],
@@ -31,7 +31,7 @@ public class SkadnetworkPlugin: NSObject, FlutterPlugin {
       }
 
     // ------------------------------------------------------------
-    // MARK: Set postback conversion value (SKAN 4+)
+    // MARK: SKAN 4.0+ (iOS 16.1+)
     // ------------------------------------------------------------
     case "setPostbackConversionValue":
       guard let args = call.arguments as? [String: Any],
@@ -43,43 +43,30 @@ public class SkadnetworkPlugin: NSObject, FlutterPlugin {
       let coarseValueStr = args["coarseValue"] as? String
       let lockWindow = args["lockWindow"] as? Bool ?? false
 
-      // ✅ SKAN 4.0 (iOS 16.1+)
       if #available(iOS 16.1, *) {
-        var coarse: SKAdNetwork.CoarseConversionValue? = nil
+        var coarse: SKAdNetwork.CoarseConversionValue = .low  // Default
+
         if let c = coarseValueStr {
           switch c.lowercased() {
-          case "low":
-            coarse = .low
-          case "medium":
-            coarse = .medium
-          case "high":
-            coarse = .high
-          default:
-            coarse = nil
+          case "medium": coarse = .medium
+          case "high": coarse = .high
+          default: coarse = .low
           }
         }
 
-        if let coarse = coarse {
-          SKAdNetwork.updatePostbackConversionValue(fineValue, coarseValue: coarse, lockWindow: lockWindow)
-          print("[SKAdNetworkPlugin] Updated postback fine:\(fineValue), coarse:\(coarse.rawValue), lock:\(lockWindow)")
-        } else {
-          SKAdNetwork.updatePostbackConversionValue(fineValue, coarseValue: nil, lockWindow: lockWindow)
-          print("[SKAdNetworkPlugin] Updated postback fine:\(fineValue), coarse:nil, lock:\(lockWindow)")
-        }
-
+        SKAdNetwork.updatePostbackConversionValue(fineValue, coarseValue: coarse, lockWindow: lockWindow)
+        print("[SKAdNetworkPlugin] Updated postback fine:\(fineValue), coarse:\(coarse.rawValue), lock:\(lockWindow)")
         result(nil)
 
-      // ✅ Fallback for iOS 14–15 (SKAN 1–3)
       } else if #available(iOS 14.0, *) {
+        // Fallback for SKAN < 4
         SKAdNetwork.updateConversionValue(fineValue)
-        print("[SKAdNetworkPlugin] Fallback: Updated fine conversion value \(fineValue)")
+        print("[SKAdNetworkPlugin] Fallback (SKAN 1–3): fine \(fineValue)")
         result(nil)
       } else {
         result(FlutterError(code: "UNSUPPORTED", message: "iOS 14.0+ required", details: nil))
       }
 
-    // ------------------------------------------------------------
-    // MARK: Unknown method
     // ------------------------------------------------------------
     default:
       result(FlutterMethodNotImplemented)
